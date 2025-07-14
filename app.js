@@ -200,6 +200,121 @@ function App() {
     /* @tweakable card spacing between components */
     const cardSpacing = 24;
 
+    /* @tweakable default API name selected on load (must match a name in commonApis) */
+    const [selectedApiName, setSelectedApiName] = useState(null);
+
+    /* @tweakable list of common industry APIs and their configurations */
+    const [commonApis, setCommonApis] = useState([
+        {
+            name: 'Google Search Console',
+            endpointConfig: {
+                method: 'GET',
+                baseUrl: 'https://www.googleapis.com/webmasters/v3',
+                path: '/sites',
+                queryParams: [],
+                headers: [{ key: 'Authorization', value: 'Bearer YOUR_ACCESS_TOKEN', required: true }],
+                body: '',
+                bodyType: 'json',
+                corsEnabled: true,
+                cacheEnabled: true,
+                cacheTtl: 600,
+                authRequired: true,
+                outputFormat: 'json'
+            }
+        },
+        {
+            name: 'Google Analytics',
+            endpointConfig: {
+                method: 'POST',
+                baseUrl: 'https://analyticsdata.googleapis.com/v1beta',
+                path: '/properties/GA_PROPERTY_ID:runReport',
+                queryParams: [],
+                headers: [
+                    { key: 'Content-Type', value: 'application/json', required: true },
+                    { key: 'Authorization', value: 'Bearer YOUR_ACCESS_TOKEN', required: true }
+                ],
+                body: JSON.stringify({
+                    "dateRanges": [{"startDate": "7daysAgo", "endDate": "today"}],
+                    "dimensions": [{"name": "city"}],
+                    "metrics": [{"name": "activeUsers"}]
+                }, null, 2),
+                bodyType: 'json',
+                corsEnabled: true,
+                cacheEnabled: false,
+                cacheTtl: 300,
+                authRequired: true,
+                outputFormat: 'json'
+            }
+        },
+        {
+            name: 'Google Docs API',
+            endpointConfig: {
+                method: 'GET',
+                baseUrl: 'https://docs.googleapis.com/v1',
+                path: '/documents/DOCUMENT_ID',
+                queryParams: [],
+                headers: [{ key: 'Authorization', value: 'Bearer YOUR_ACCESS_TOKEN', required: true }],
+                body: '',
+                bodyType: 'json',
+                corsEnabled: true,
+                cacheEnabled: true,
+                cacheTtl: 3600,
+                authRequired: true,
+                outputFormat: 'json'
+            }
+        },
+        {
+            name: 'Google Sheets API',
+            endpointConfig: {
+                method: 'GET',
+                baseUrl: 'https://sheets.googleapis.com/v4',
+                path: '/spreadsheets/SPREADSHEET_ID/values/Sheet1!A1:C10',
+                queryParams: [],
+                headers: [{ key: 'Authorization', value: 'Bearer YOUR_ACCESS_TOKEN', required: true }],
+                body: '',
+                bodyType: 'json',
+                corsEnabled: true,
+                cacheEnabled: true,
+                cacheTtl: 300,
+                authRequired: true,
+                outputFormat: 'json'
+            }
+        },
+        {
+            name: 'Appscript API',
+            endpointConfig: {
+                method: 'POST',
+                baseUrl: 'https://script.googleapis.com/v1',
+                path: '/scripts/SCRIPT_ID:run',
+                queryParams: [],
+                headers: [
+                    { key: 'Content-Type', value: 'application/json', required: true },
+                    { key: 'Authorization', value: 'Bearer YOUR_ACCESS_TOKEN', required: true }
+                ],
+                body: JSON.stringify({
+                    "function": "myFunctionName",
+                    "parameters": ["param1", "param2"]
+                }, null, 2),
+                bodyType: 'json',
+                corsEnabled: true,
+                cacheEnabled: false,
+                cacheTtl: 300,
+                authRequired: true,
+                outputFormat: 'json'
+            }
+        }
+    ]);
+
+
+    useEffect(() => {
+        if (selectedApiName) {
+            const api = commonApis.find(api => api.name === selectedApiName);
+            if (api) {
+                setEndpoint(api.endpointConfig);
+            }
+        }
+    }, [selectedApiName, commonApis]);
+
     const sendRequest = async () => {
         setIsLoading(true);
         
@@ -342,34 +457,43 @@ function App() {
     };
 
     return (
-        <div className="min-h-screen bg-surface">
+        <div className="min-h-screen bg-surface flex flex-col">
             <Header />
-            <div className="max-w-7xl mx-auto px-6 py-8">
-                <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
-                    <div className="space-y-6">
-                        <EndpointBuilder 
-                            endpoint={endpoint}
-                            setEndpoint={setEndpoint}
-                            addQueryParam={addQueryParam}
-                            updateQueryParam={updateQueryParam}
-                            removeQueryParam={removeQueryParam}
-                            addHeader={addHeader}
-                            updateHeader={updateHeader}
-                            removeHeader={removeHeader}
-                            getFullUrl={getFullUrl}
-                            sendRequest={sendRequest}
-                            isLoading={isLoading}
-                            exportConfig={exportConfig}
-                        />
-                    </div>
-                    <div className="space-y-6">
-                        <ResponsePreview 
-                            response={response}
-                            activeTab={activeTab}
-                            setActiveTab={setActiveTab}
-                            mockResponse={mockResponse}
-                            setMockResponse={setMockResponse}
-                        />
+            <div className="flex flex-1"> {/* Main flex container for sidebar + content */}
+                <Sidebar 
+                    commonApis={commonApis} 
+                    selectedApiName={selectedApiName} 
+                    onSelectApi={setSelectedApiName} 
+                />
+                <div className="flex-1 overflow-auto px-6 py-8"> {/* Main content area */}
+                    <div className="max-w-7xl mx-auto">
+                        <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
+                            <div className="space-y-6">
+                                <EndpointBuilder 
+                                    endpoint={endpoint}
+                                    setEndpoint={setEndpoint}
+                                    addQueryParam={addQueryParam}
+                                    updateQueryParam={updateQueryParam}
+                                    removeQueryParam={removeQueryParam}
+                                    addHeader={addHeader}
+                                    updateHeader={updateHeader}
+                                    removeHeader={removeHeader}
+                                    getFullUrl={getFullUrl}
+                                    sendRequest={sendRequest}
+                                    isLoading={isLoading}
+                                    exportConfig={exportConfig}
+                                />
+                            </div>
+                            <div className="space-y-6">
+                                <ResponsePreview 
+                                    response={response}
+                                    activeTab={activeTab}
+                                    setActiveTab={setActiveTab}
+                                    mockResponse={mockResponse}
+                                    setMockResponse={setMockResponse}
+                                />
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -405,6 +529,45 @@ function Header() {
                 </div>
             </div>
         </header>
+    );
+}
+
+// Sidebar Component
+function Sidebar({ commonApis, selectedApiName, onSelectApi }) {
+    /* @tweakable sidebar width */
+    const sidebarWidth = '280px';
+    /* @tweakable background color for the sidebar */
+    const sidebarBgColor = 'bg-surface-variant';
+    /* @tweakable text color for active sidebar item */
+    const activeItemTextColor = 'text-primary';
+    /* @tweakable background color for active sidebar item */
+    const activeItemBgColor = 'bg-primary/10';
+    /* @tweakable text color for inactive sidebar item */
+    const inactiveItemTextColor = 'text-gray-700';
+    /* @tweakable hover background color for inactive sidebar item */
+    const hoverItemBgColor = 'hover:bg-primary/5';
+
+    return (
+        <div className={`flex-shrink-0 w-[${sidebarWidth}] ${sidebarBgColor} border-r border-outline/20 p-4 space-y-4 shadow-md3-elevated overflow-y-auto`}>
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Common APIs</h3>
+            <div className="space-y-2">
+                {commonApis.map((api) => (
+                    <button
+                        key={api.name}
+                        onClick={() => onSelectApi(api.name)}
+                        className={`
+                            w-full text-left px-4 py-2 rounded-md transition-colors duration-200
+                            ${selectedApiName === api.name
+                                ? `${activeItemBgColor} ${activeItemTextColor} font-medium`
+                                : `${inactiveItemTextColor} ${hoverItemBgColor}`
+                            }
+                        `}
+                    >
+                        {api.name}
+                    </button>
+                ))}
+            </div>
+        </div>
     );
 }
 
@@ -972,4 +1135,4 @@ function MockEditor({ mockResponse, setMockResponse }) {
 }
 
 // Render the app
-ReactDOM.render(<App />, document.getElementById('root'));
+ReactDOM.render(<App />, document.getElementById('root-container'));
