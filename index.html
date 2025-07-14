@@ -65,8 +65,10 @@
         }
     </style>
 </head>
-<body class="bg-surface min-h-screen">
-    <div id="root"></div>
+<body class="bg-surface min-h-screen flex flex-col">
+    <div id="root-container" class="flex flex-col flex-1">
+        <!-- React app will render inside #root, and this container will handle the flex layout -->
+    </div>
     <script type="text/babel" src="app.js"></script>
 </body>
 </html>
