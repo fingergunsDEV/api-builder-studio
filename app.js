@@ -203,114 +203,254 @@ function App() {
     /* @tweakable default API name selected on load (must match a name in commonApis) */
     const [selectedApiName, setSelectedApiName] = useState(null);
 
-    /* @tweakable list of common industry APIs and their configurations */
-    const [commonApis, setCommonApis] = useState([
-        {
-            name: 'Google Search Console',
-            endpointConfig: {
-                method: 'GET',
-                baseUrl: 'https://www.googleapis.com/webmasters/v3',
-                path: '/sites',
-                queryParams: [],
-                headers: [{ key: 'Authorization', value: 'Bearer YOUR_ACCESS_TOKEN', required: true }],
-                body: '',
-                bodyType: 'json',
-                corsEnabled: true,
-                cacheEnabled: true,
-                cacheTtl: 600,
-                authRequired: true,
-                outputFormat: 'json'
+    /* @tweakable Categories and configurations for common industry APIs */
+    const [commonApis, setCommonApis] = useState({
+        'Google APIs': [
+            {
+                name: 'Google Search Console',
+                endpointConfig: {
+                    method: 'GET',
+                    baseUrl: 'https://www.googleapis.com/webmasters/v3',
+                    path: '/sites',
+                    queryParams: [],
+                    headers: [{ key: 'Authorization', value: 'Bearer YOUR_ACCESS_TOKEN', required: true }],
+                    body: '',
+                    bodyType: 'json',
+                    corsEnabled: true,
+                    cacheEnabled: true,
+                    cacheTtl: 600,
+                    authRequired: true,
+                    outputFormat: 'json'
+                }
+            },
+            {
+                name: 'Google Analytics',
+                endpointConfig: {
+                    method: 'POST',
+                    baseUrl: 'https://analyticsdata.googleapis.com/v1beta',
+                    path: '/properties/GA_PROPERTY_ID:runReport',
+                    queryParams: [],
+                    headers: [
+                        { key: 'Content-Type', value: 'application/json', required: true },
+                        { key: 'Authorization', value: 'Bearer YOUR_ACCESS_TOKEN', required: true }
+                    ],
+                    body: JSON.stringify({
+                        "dateRanges": [{"startDate": "7daysAgo", "endDate": "today"}],
+                        "dimensions": [{"name": "city"}],
+                        "metrics": [{"name": "activeUsers"}]
+                    }, null, 2),
+                    bodyType: 'json',
+                    corsEnabled: true,
+                    cacheEnabled: false,
+                    cacheTtl: 300,
+                    authRequired: true,
+                    outputFormat: 'json'
+                }
+            },
+            {
+                name: 'Google Docs API',
+                endpointConfig: {
+                    method: 'GET',
+                    baseUrl: 'https://docs.googleapis.com/v1',
+                    path: '/documents/DOCUMENT_ID',
+                    queryParams: [],
+                    headers: [{ key: 'Authorization', value: 'Bearer YOUR_ACCESS_TOKEN', required: true }],
+                    body: '',
+                    bodyType: 'json',
+                    corsEnabled: true,
+                    cacheEnabled: true,
+                    cacheTtl: 3600,
+                    authRequired: true,
+                    outputFormat: 'json'
+                }
+            },
+            {
+                name: 'Google Sheets API',
+                endpointConfig: {
+                    method: 'GET',
+                    baseUrl: 'https://sheets.googleapis.com/v4',
+                    path: '/spreadsheets/SPREADSHEET_ID/values/Sheet1!A1:C10',
+                    queryParams: [],
+                    headers: [{ key: 'Authorization', value: 'Bearer YOUR_ACCESS_TOKEN', required: true }],
+                    body: '',
+                    bodyType: 'json',
+                    corsEnabled: true,
+                    cacheEnabled: true,
+                    cacheTtl: 300,
+                    authRequired: true,
+                    outputFormat: 'json'
+                }
+            },
+            {
+                name: 'Appscript API',
+                endpointConfig: {
+                    method: 'POST',
+                    baseUrl: 'https://script.googleapis.com/v1',
+                    path: '/scripts/SCRIPT_ID:run',
+                    queryParams: [],
+                    headers: [
+                        { key: 'Content-Type', value: 'application/json', required: true },
+                        { key: 'Authorization', value: 'Bearer YOUR_ACCESS_TOKEN', required: true }
+                    ],
+                    body: JSON.stringify({
+                        "function": "myFunctionName",
+                        "parameters": ["param1", "param2"]
+                    }, null, 2),
+                    bodyType: 'json',
+                    corsEnabled: true,
+                    cacheEnabled: false,
+                    cacheTtl: 300,
+                    authRequired: true,
+                    outputFormat: 'json'
+                }
+            },
+            {
+                name: 'Google Maps Geocoding API',
+                endpointConfig: {
+                    method: 'GET',
+                    baseUrl: 'https://maps.googleapis.com/maps/api/geocode/json',
+                    path: '',
+                    queryParams: [
+                        { key: 'address', value: '1600 Amphitheatre Parkway, Mountain View, CA', required: true },
+                        { key: 'key', value: 'YOUR_API_KEY', required: true }
+                    ],
+                    headers: [],
+                    body: '',
+                    bodyType: 'json',
+                    corsEnabled: true,
+                    cacheEnabled: true,
+                    cacheTtl: 86400,
+                    authRequired: true,
+                    outputFormat: 'json'
+                }
+            },
+            {
+                name: 'Google Cloud Vision API',
+                endpointConfig: {
+                    method: 'POST',
+                    baseUrl: 'https://vision.googleapis.com/v1/images:annotate',
+                    path: '',
+                    queryParams: [{ key: 'key', value: 'YOUR_API_KEY', required: true }],
+                    headers: [{ key: 'Content-Type', value: 'application/json', required: true }],
+                    body: JSON.stringify({
+                        "requests": [
+                            {
+                                "image": { "source": { "imageUri": "gs://cloud-samples-data/vision/label/wakeupcat.jpg" } },
+                                "features": [{ "type": "LABEL_DETECTION", "maxResults": 1 }]
+                            }
+                        ]
+                    }, null, 2),
+                    bodyType: 'json',
+                    corsEnabled: true,
+                    cacheEnabled: false,
+                    cacheTtl: 300,
+                    authRequired: true,
+                    outputFormat: 'json'
+                }
+            },
+            {
+                name: 'Google Translate API',
+                endpointConfig: {
+                    method: 'POST',
+                    baseUrl: 'https://translation.googleapis.com/language/translate/v2',
+                    path: '',
+                    queryParams: [{ key: 'key', value: 'YOUR_API_KEY', required: true }],
+                    headers: [{ key: 'Content-Type', value: 'application/json', required: true }],
+                    body: JSON.stringify({
+                        "q": "Hello, world!",
+                        "target": "es"
+                    }, null, 2),
+                    bodyType: 'json',
+                    corsEnabled: true,
+                    cacheEnabled: false,
+                    cacheTtl: 300,
+                    authRequired: true,
+                    outputFormat: 'json'
+                }
+            },
+        ],
+        'SEO Tools': [
+            {
+                name: 'Ahrefs API - Site Explorer',
+                endpointConfig: {
+                    method: 'GET',
+                    baseUrl: 'https://api.ahrefs.com/v3/site-explorer',
+                    path: '/overview',
+                    queryParams: [
+                        { key: 'target', value: 'example.com', required: true },
+                        { key: 'output', value: 'json', required: true },
+                        { key: 'token', value: 'YOUR_AHREFS_API_TOKEN', required: true }
+                    ],
+                    headers: [],
+                    body: '',
+                    bodyType: 'json',
+                    corsEnabled: true,
+                    cacheEnabled: true,
+                    cacheTtl: 3600,
+                    authRequired: true,
+                    outputFormat: 'json'
+                }
+            },
+            {
+                name: 'Semrush API - Domain Overview',
+                endpointConfig: {
+                    method: 'GET',
+                    baseUrl: 'https://api.semrush.com',
+                    path: '',
+                    queryParams: [
+                        { key: 'type', value: 'domain_rank', required: true },
+                        { key: 'key', value: 'YOUR_SEMRUSH_API_KEY', required: true },
+                        { key: 'domain', value: 'example.com', required: true },
+                        { key: 'database', value: 'us', required: true },
+                        { key: 'export_columns', value: 'rank,organic_keywords,organic_traffic', required: true }
+                    ],
+                    headers: [],
+                    body: '',
+                    bodyType: 'json',
+                    corsEnabled: true,
+                    cacheEnabled: true,
+                    cacheTtl: 3600,
+                    authRequired: true,
+                    outputFormat: 'json'
+                }
+            },
+            {
+                name: 'Sitechecker.pro API - Site Audit',
+                endpointConfig: {
+                    method: 'GET',
+                    baseUrl: 'https://api.sitechecker.pro/v1',
+                    path: '/site-audit',
+                    queryParams: [
+                        { key: 'domain', value: 'example.com', required: true },
+                        { key: 'api_key', value: 'YOUR_SITECHECKER_API_KEY', required: true }
+                    ],
+                    headers: [],
+                    body: '',
+                    bodyType: 'json',
+                    corsEnabled: true,
+                    cacheEnabled: false,
+                    cacheTtl: 300,
+                    authRequired: true,
+                    outputFormat: 'json'
+                }
             }
-        },
-        {
-            name: 'Google Analytics',
-            endpointConfig: {
-                method: 'POST',
-                baseUrl: 'https://analyticsdata.googleapis.com/v1beta',
-                path: '/properties/GA_PROPERTY_ID:runReport',
-                queryParams: [],
-                headers: [
-                    { key: 'Content-Type', value: 'application/json', required: true },
-                    { key: 'Authorization', value: 'Bearer YOUR_ACCESS_TOKEN', required: true }
-                ],
-                body: JSON.stringify({
-                    "dateRanges": [{"startDate": "7daysAgo", "endDate": "today"}],
-                    "dimensions": [{"name": "city"}],
-                    "metrics": [{"name": "activeUsers"}]
-                }, null, 2),
-                bodyType: 'json',
-                corsEnabled: true,
-                cacheEnabled: false,
-                cacheTtl: 300,
-                authRequired: true,
-                outputFormat: 'json'
-            }
-        },
-        {
-            name: 'Google Docs API',
-            endpointConfig: {
-                method: 'GET',
-                baseUrl: 'https://docs.googleapis.com/v1',
-                path: '/documents/DOCUMENT_ID',
-                queryParams: [],
-                headers: [{ key: 'Authorization', value: 'Bearer YOUR_ACCESS_TOKEN', required: true }],
-                body: '',
-                bodyType: 'json',
-                corsEnabled: true,
-                cacheEnabled: true,
-                cacheTtl: 3600,
-                authRequired: true,
-                outputFormat: 'json'
-            }
-        },
-        {
-            name: 'Google Sheets API',
-            endpointConfig: {
-                method: 'GET',
-                baseUrl: 'https://sheets.googleapis.com/v4',
-                path: '/spreadsheets/SPREADSHEET_ID/values/Sheet1!A1:C10',
-                queryParams: [],
-                headers: [{ key: 'Authorization', value: 'Bearer YOUR_ACCESS_TOKEN', required: true }],
-                body: '',
-                bodyType: 'json',
-                corsEnabled: true,
-                cacheEnabled: true,
-                cacheTtl: 300,
-                authRequired: true,
-                outputFormat: 'json'
-            }
-        },
-        {
-            name: 'Appscript API',
-            endpointConfig: {
-                method: 'POST',
-                baseUrl: 'https://script.googleapis.com/v1',
-                path: '/scripts/SCRIPT_ID:run',
-                queryParams: [],
-                headers: [
-                    { key: 'Content-Type', value: 'application/json', required: true },
-                    { key: 'Authorization', value: 'Bearer YOUR_ACCESS_TOKEN', required: true }
-                ],
-                body: JSON.stringify({
-                    "function": "myFunctionName",
-                    "parameters": ["param1", "param2"]
-                }, null, 2),
-                bodyType: 'json',
-                corsEnabled: true,
-                cacheEnabled: false,
-                cacheTtl: 300,
-                authRequired: true,
-                outputFormat: 'json'
-            }
-        }
-    ]);
+        ]
+    });
 
 
     useEffect(() => {
         if (selectedApiName) {
-            const api = commonApis.find(api => api.name === selectedApiName);
-            if (api) {
-                setEndpoint(api.endpointConfig);
+            let foundApi = null;
+            // Iterate through categories and then APIs to find the selected one
+            for (const category in commonApis) {
+                const api = commonApis[category].find(api => api.name === selectedApiName);
+                if (api) {
+                    foundApi = api;
+                    break;
+                }
+            }
+            if (foundApi) {
+                setEndpoint(foundApi.endpointConfig);
             }
         }
     }, [selectedApiName, commonApis]);
@@ -550,23 +690,26 @@ function Sidebar({ commonApis, selectedApiName, onSelectApi }) {
     return (
         <div className={`flex-shrink-0 w-[${sidebarWidth}] ${sidebarBgColor} border-r border-outline/20 p-4 space-y-4 shadow-md3-elevated overflow-y-auto`}>
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Common APIs</h3>
-            <div className="space-y-2">
-                {commonApis.map((api) => (
-                    <button
-                        key={api.name}
-                        onClick={() => onSelectApi(api.name)}
-                        className={`
-                            w-full text-left px-4 py-2 rounded-md transition-colors duration-200
-                            ${selectedApiName === api.name
-                                ? `${activeItemBgColor} ${activeItemTextColor} font-medium`
-                                : `${inactiveItemTextColor} ${hoverItemBgColor}`
-                            }
-                        `}
-                    >
-                        {api.name}
-                    </button>
-                ))}
-            </div>
+            {Object.entries(commonApis).map(([category, apis]) => (
+                <div key={category} className="space-y-2 mb-4">
+                    <h4 className="text-md font-semibold text-gray-700 mt-4 mb-2">{category}</h4>
+                    {apis.map((api) => (
+                        <button
+                            key={api.name}
+                            onClick={() => onSelectApi(api.name)}
+                            className={`
+                                w-full text-left px-4 py-2 rounded-md transition-colors duration-200
+                                ${selectedApiName === api.name
+                                    ? `${activeItemBgColor} ${activeItemTextColor} font-medium`
+                                    : `${inactiveItemTextColor} ${hoverItemBgColor}`
+                                }
+                            `}
+                        >
+                            {api.name}
+                        </button>
+                    ))}
+                </div>
+            ))}
         </div>
     );
 }
