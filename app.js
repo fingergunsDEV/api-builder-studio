@@ -193,6 +193,10 @@ function App() {
             }
         }
     });
+    /* @tweakable Maximum number of requests to keep in history */
+    const [requestHistory, setRequestHistory] = useState([]);
+    /* @tweakable Maximum number of requests to keep in history */
+    const maxHistoryItems = 10; 
 
     /* @tweakable animation duration for transitions */
     const animationDuration = 300;
@@ -450,24 +454,51 @@ function App() {
                 }
             }
             if (foundApi) {
-                setEndpoint(foundApi.endpointConfig);
+                // Deep copy the endpointConfig to avoid mutation issues
+                setEndpoint(JSON.parse(JSON.stringify(foundApi.endpointConfig)));
             }
         }
     }, [selectedApiName, commonApis]);
 
     const sendRequest = async () => {
         setIsLoading(true);
+        const startTime = Date.now();
         
         // Simulate API call
         setTimeout(() => {
-            setResponse({
+            const newResponse = {
                 status: 200,
                 statusText: 'OK',
-                data: mockResponse,
-                responseTime: Math.floor(Math.random() * 500) + 100
-            });
+                data: mockResponse, // Use mockResponse for the actual data
+                responseTime: Date.now() - startTime
+            };
+            setResponse(newResponse);
             setIsLoading(false);
+
+            // Add to history
+            setRequestHistory(prevHistory => {
+                const newHistoryItem = {
+                    endpointConfig: JSON.parse(JSON.stringify(endpoint)), // Deep copy current endpoint
+                    response: newResponse,
+                    timestamp: new Date().toLocaleString()
+                };
+                // Keep only the latest `maxHistoryItems`
+                return [newHistoryItem, ...prevHistory].slice(0, maxHistoryItems);
+            });
         }, 1000);
+    };
+
+    const loadFromHistory = (index) => {
+        const historyItem = requestHistory[index];
+        if (historyItem) {
+            setEndpoint(JSON.parse(JSON.stringify(historyItem.endpointConfig))); // Deep copy
+            setResponse(historyItem.response);
+            setActiveTab('raw'); // Switch to raw view when loading from history
+        }
+    };
+
+    const clearHistory = () => {
+        setRequestHistory([]);
     };
 
     const addQueryParam = () => {
@@ -631,6 +662,9 @@ function App() {
                                     setActiveTab={setActiveTab}
                                     mockResponse={mockResponse}
                                     setMockResponse={setMockResponse}
+                                    requestHistory={requestHistory}
+                                    loadFromHistory={loadFromHistory}
+                                    clearHistory={clearHistory}
                                 />
                             </div>
                         </div>
@@ -1073,7 +1107,10 @@ function ExportDropdown({ exportConfig }) {
 }
 
 // Response Preview Component
-function ResponsePreview({ response, activeTab, setActiveTab, mockResponse, setMockResponse }) {
+function ResponsePreview({ response, activeTab, setActiveTab, mockResponse, setMockResponse, requestHistory, loadFromHistory, clearHistory }) {
+    /* @tweakable Whether to show response status and time details */
+    const showResponseDetails = true;
+
     return (
         <MaterialCard className="p-6">
             <div className="flex items-center justify-between mb-6">
@@ -1092,20 +1129,38 @@ function ResponsePreview({ response, activeTab, setActiveTab, mockResponse, setM
                         icon="account_tree"
                     />
                     <TabButton
+                        active={activeTab === 'schema'}
+                        onClick={() => setActiveTab('schema')}
+                        label="Schema"
+                        icon="schema"
+                    />
+                    <TabButton
                         active={activeTab === 'mock'}
                         onClick={() => setActiveTab('mock')}
                         label="Mock"
                         icon="edit"
                     />
+                     <TabButton
+                        active={activeTab === 'history'}
+                        onClick={() => setActiveTab('history')}
+                        label="History"
+                        icon="history"
+                    />
+                    <TabButton
+                        active={activeTab === 'monitoring'}
+                        onClick={() => setActiveTab('monitoring')}
+                        label="Monitoring"
+                        icon="monitor"
+                    />
                 </div>
             </div>
 
-            {response && (
+            {response && showResponseDetails && (
                 <div className="mb-6 p-4 bg-surface-variant rounded-md3">
                     <div className="flex items-center space-x-4">
                         <MaterialChip
                             label={`${response.status} ${response.statusText}`}
-                            color={response.status === 200 ? 'success' : 'error'}
+                            color={response.status >= 200 && response.status < 300 ? 'primary' : 'error'}
                         />
                         <div className="flex items-center space-x-2 text-sm text-secondary">
                             <span className="material-icons text-sm">schedule</span>
@@ -1122,8 +1177,21 @@ function ResponsePreview({ response, activeTab, setActiveTab, mockResponse, setM
                 {activeTab === 'tree' && (
                     <TreeView data={response?.data || mockResponse} />
                 )}
+                {activeTab === 'schema' && (
+                    <SchemaView data={response?.data || mockResponse} />
+                )}
                 {activeTab === 'mock' && (
                     <MockEditor mockResponse={mockResponse} setMockResponse={setMockResponse} />
+                )}
+                {activeTab === 'history' && (
+                    <HistoryView 
+                        requestHistory={requestHistory} 
+                        loadFromHistory={loadFromHistory} 
+                        clearHistory={clearHistory} 
+                    />
+                )}
+                {activeTab === 'monitoring' && (
+                    <MonitoringView />
                 )}
             </div>
         </MaterialCard>
@@ -1273,6 +1341,263 @@ function MockEditor({ mockResponse, setMockResponse }) {
                 multiline
                 rows={20}
             />
+        </div>
+    );
+}
+
+// New SchemaView Component
+function SchemaView({ data }) {
+    /* @tweakable maximum depth for schema inference */
+    const maxSchemaDepth = 5;
+
+    const inferSchema = (obj, depth = 0) => {
+        if (depth > maxSchemaDepth) {
+            return { type: 'string', description: 'Maximum depth reached, schema truncated.' };
+        }
+
+        if (obj === null) {
+            return { type: 'null' };
+        }
+        
+        const type = typeof obj;
+        if (type === 'boolean' || type === 'number' || type === 'string') {
+            return { type: type };
+        }
+
+        if (Array.isArray(obj)) {
+            const itemsSchema = obj.length > 0 ? inferSchema(obj[0], depth + 1) : {};
+            return { type: 'array', items: itemsSchema };
+        }
+
+        if (type === 'object') {
+            const properties = {};
+            const required = [];
+            for (const key in obj) {
+                if (obj.hasOwnProperty(key)) {
+                    properties[key] = inferSchema(obj[key], depth + 1);
+                    // For simplicity, consider all present fields as 'required' in a basic inference
+                    required.push(key); 
+                }
+            }
+            return { type: 'object', properties, required: required.length > 0 ? required : undefined };
+        }
+
+        return { type: 'unknown' };
+    };
+
+    const schema = inferSchema(data);
+    const schemaString = JSON.stringify(schema, null, 2);
+
+    return (
+        <div className="bg-gray-900 rounded-md3 p-4 overflow-auto max-h-96">
+            <pre className="text-sm text-gray-100 font-mono">
+                <code>{schemaString}</code>
+            </pre>
+        </div>
+    );
+}
+
+// New HistoryView Component
+function HistoryView({ requestHistory, loadFromHistory, clearHistory }) {
+    /* @tweakable Text color for successful history items */
+    const successHistoryColor = 'text-success';
+    /* @tweakable Text color for error history items */
+    const errorHistoryColor = 'text-error';
+
+    return (
+        <div className="space-y-4">
+            <div className="flex items-center justify-between">
+                <h3 className="text-lg font-medium text-gray-900">Request History</h3>
+                <MaterialButton variant="outlined" size="small" onClick={clearHistory} icon="clear_all">
+                    Clear History
+                </MaterialButton>
+            </div>
+            {requestHistory.length === 0 ? (
+                <p className="text-secondary text-center py-8">No requests in history yet. Send a request to see it appear here!</p>
+            ) : (
+                <div className="space-y-3">
+                    {requestHistory.map((item, index) => (
+                        <MaterialCard key={index} className="p-4 flex items-center justify-between">
+                            <div>
+                                <div className="font-semibold text-lg">
+                                    <span className={`${item.response.status >= 200 && item.response.status < 300 ? successHistoryColor : errorHistoryColor}`}>
+                                        {item.response.status}
+                                    </span>
+                                    <span className="ml-2 text-primary">{item.endpointConfig.method}</span>
+                                    <span className="ml-2 text-gray-900">{item.endpointConfig.path}</span>
+                                </div>
+                                <div className="text-sm text-secondary mt-1">
+                                    <span>{item.timestamp}</span>
+                                    <span className="ml-4">Response Time: {item.response.responseTime}ms</span>
+                                </div>
+                            </div>
+                            <div className="flex space-x-2">
+                                <MaterialButton variant="outlined" size="small" onClick={() => loadFromHistory(index)} icon="replay">
+                                    Load
+                                </MaterialButton>
+                            </div>
+                        </MaterialCard>
+                    ))}
+                </div>
+            )}
+        </div>
+    );
+}
+
+// New MonitoringView Component
+function MonitoringView() {
+    /* @tweakable Color for online connection status */
+    const connectionStatusOnlineColor = 'bg-success';
+    /* @tweakable Color for offline connection status */
+    const connectionStatusOfflineColor = 'bg-error';
+    /* @tweakable Max number of error log entries to display */
+    const maxErrorLogEntries = 10;
+    /* @tweakable Interval in milliseconds for updating simulated monitoring data */
+    const simulatedDataUpdateIntervalMs = 5000;
+    /* @tweakable Success rate percentage threshold for "good" status */
+    const simulatedSuccessRateThreshold = 95;
+    /* @tweakable Latency threshold in milliseconds for "good" status */
+    const simulatedLatencyThresholdMs = 200;
+    /* @tweakable array of possible error messages for simulation */
+    const possibleErrorMessages = [
+        "Authentication failed (401)",
+        "Resource not found (404)",
+        "Internal server error (500)",
+        "Gateway timeout (504)",
+        "Rate limit exceeded (429)",
+        "Bad request (400)",
+        "Database connection lost"
+    ];
+    /* @tweakable Percentage chance of an error occurring in simulated data (0-100) */
+    const simulatedErrorChancePercent = 10;
+    /* @tweakable Percentage chance of maintenance mode being active (0-100) */
+    const simulatedMaintenanceChancePercent = 5;
+
+    const [connectionStatus, setConnectionStatus] = useState('Online'); // 'Online' | 'Offline'
+    const [errorLogs, setErrorLogs] = useState([]);
+    const [trafficMetrics, setTrafficMetrics] = useState({
+        totalRequests: 0,
+        successRate: 100,
+        errorRate: 0
+    });
+    const [latency, setLatency] = useState(0);
+    const [maintenanceMode, setMaintenanceMode] = useState(false);
+
+    const generateSimulatedData = () => {
+        // Simulate connection status
+        setConnectionStatus(Math.random() < 0.95 ? 'Online' : 'Offline');
+
+        // Simulate error logs
+        if (Math.random() * 100 < simulatedErrorChancePercent) {
+            const errorMessage = possibleErrorMessages[Math.floor(Math.random() * possibleErrorMessages.length)];
+            setErrorLogs(prev => [`[${new Date().toLocaleTimeString()}] ERROR: ${errorMessage}`, ...prev].slice(0, maxErrorLogEntries));
+        }
+
+        // Simulate traffic metrics
+        setTrafficMetrics(prev => {
+            const newTotalRequests = prev.totalRequests + Math.floor(Math.random() * 10) + 1;
+            const newSuccessCount = Math.floor(newTotalRequests * (0.90 + Math.random() * 0.1)); // 90-100% success
+            const newErrorCount = newTotalRequests - newSuccessCount;
+            const newSuccessRate = (newSuccessCount / newTotalRequests * 100).toFixed(2);
+            const newErrorRate = (newErrorCount / newTotalRequests * 100).toFixed(2);
+            return {
+                totalRequests: newTotalRequests,
+                successRate: parseFloat(newSuccessRate),
+                errorRate: parseFloat(newErrorRate)
+            };
+        });
+
+        // Simulate latency
+        setLatency(Math.floor(Math.random() * 500) + 50); // 50ms - 550ms
+
+        // Simulate maintenance mode
+        setMaintenanceMode(Math.random() * 100 < simulatedMaintenanceChancePercent);
+    };
+
+    useEffect(() => {
+        generateSimulatedData(); // Initial data load
+        const interval = setInterval(generateSimulatedData, simulatedDataUpdateIntervalMs);
+        return () => clearInterval(interval);
+    }, []);
+
+    return (
+        <div className="space-y-6">
+            <h3 className="text-xl font-semibold text-gray-900 mb-4">API Health & Monitoring</h3>
+
+            {/* Overall Status */}
+            <MaterialCard className="p-4 flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                    <div className={`w-4 h-4 rounded-full ${connectionStatus === 'Online' ? connectionStatusOnlineColor : connectionStatusOfflineColor}`}></div>
+                    <span className="text-lg font-medium">Connection Status: {connectionStatus}</span>
+                </div>
+                {maintenanceMode && (
+                    <MaterialChip label="Under Scheduled Maintenance" color="tertiary" />
+                )}
+            </MaterialCard>
+
+            {/* Metrics Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <MaterialCard className="p-4 text-center">
+                    <div className="text-sm text-secondary">Total Requests</div>
+                    <div className="text-3xl font-bold text-primary mt-2">{trafficMetrics.totalRequests}</div>
+                </MaterialCard>
+                <MaterialCard className="p-4 text-center">
+                    <div className="text-sm text-secondary">Success Rate</div>
+                    <div className={`text-3xl font-bold mt-2 ${trafficMetrics.successRate >= simulatedSuccessRateThreshold ? 'text-success' : 'text-error'}`}>
+                        {trafficMetrics.successRate}%
+                    </div>
+                </MaterialCard>
+                <MaterialCard className="p-4 text-center">
+                    <div className="text-sm text-secondary">Average Latency</div>
+                    <div className={`text-3xl font-bold mt-2 ${latency <= simulatedLatencyThresholdMs ? 'text-success' : 'text-tertiary'}`}>
+                        {latency}ms
+                    </div>
+                </MaterialCard>
+            </div>
+
+            {/* Error Log */}
+            <MaterialCard className="p-6">
+                <div className="flex items-center justify-between mb-4">
+                    <h4 className="text-lg font-medium text-gray-900">Error Log</h4>
+                    <MaterialButton variant="text" size="small" onClick={() => setErrorLogs([])} icon="delete">
+                        Clear Log
+                    </MaterialButton>
+                </div>
+                <div className="bg-gray-900 rounded-md3 p-4 overflow-auto max-h-64">
+                    {errorLogs.length === 0 ? (
+                        <p className="text-gray-400 text-sm">No errors logged.</p>
+                    ) : (
+                        <ul className="space-y-2">
+                            {errorLogs.map((log, index) => (
+                                <li key={index} className="text-red-300 text-xs font-mono break-words">
+                                    {log}
+                                </li>
+                            ))}
+                        </ul>
+                    )}
+                </div>
+            </MaterialCard>
+
+            {/* General Maintenance Section (Placeholder for more controls) */}
+            <MaterialCard className="p-6">
+                <h4 className="text-lg font-medium text-gray-900 mb-4">General Maintenance</h4>
+                <div className="space-y-4">
+                    <MaterialSwitch
+                        checked={maintenanceMode}
+                        onChange={setMaintenanceMode}
+                        label="Toggle Maintenance Mode"
+                    />
+                    <p className="text-sm text-secondary">
+                        {maintenanceMode 
+                            ? /* @tweakable maintenance mode active message */ "API is currently in maintenance mode. Requests may be delayed or return errors."
+                            : /* @tweakable maintenance mode inactive message */ "API is operating normally. Maintenance mode is off."
+                        }
+                    </p>
+                    <MaterialButton variant="outlined" size="medium" icon="build">
+                        Run Diagnostics (Simulated)
+                    </MaterialButton>
+                </div>
+            </MaterialCard>
         </div>
     );
 }
